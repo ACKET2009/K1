@@ -162,7 +162,6 @@ For detailed installation instructions, see **[version_config](/version_config/r
 
 ### 🗂️ Additional Sections:
 
-- **[VPN Setup](/vpn/vpn.md)** - remote printer access
 - **[ERCF](/ercf/readme.md)** - multi-material system
 
 ---
