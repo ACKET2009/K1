@@ -127,6 +127,72 @@ toggle_algorithm() {
     fi
 }
 
+full_rollback() {
+    echo_yellow "=== ПОЛНЫЙ ОТКАТ К ИСХОДНОМУ СОСТОЯНИЮ ==="
+    echo_red "⚠️ ВНИМАНИЕ! Это вернет все файлы к исходному состоянию."
+    printf "Вы уверены? (y/n): "
+    read confirm
+    
+    if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+        echo_yellow "Откат отменён."
+        return
+    fi
+    
+    cd /usr/share/klipper/klippy/ || return 1
+    
+    # Восстановление toolhead.py
+    if [ -f "toolhead.py.bak" ]; then
+        mv toolhead.py.bak toolhead.py
+        echo_green "✔ toolhead.py восстановлен из бекапа"
+    elif [ -f "toolhead.py.bak1" ]; then
+        mv toolhead.py.bak1 toolhead.py
+        echo_green "✔ toolhead.py восстановлен из бекапа (K1SE)"
+    else
+        echo_yellow "⚠ toolhead.py.bak не найден, пропускаем"
+    fi
+    
+    rm -f toolhead.pyc
+    
+    cd /usr/share/klipper/klippy/extras/ || return 1
+    
+    # Восстановление resonance_tester.py
+    if [ -f "resonance_tester.py.bak" ]; then
+        mv resonance_tester.py.bak resonance_tester.py
+        echo_green "✔ resonance_tester.py восстановлен из бекапа"
+    else
+        echo_yellow "⚠ resonance_tester.py.bak не найден, пропускаем"
+    fi
+    
+    # Восстановление shaper_calibrate.py
+    if [ -f "shaper_calibrate.py.bak" ]; then
+        mv shaper_calibrate.py.bak shaper_calibrate.py
+        echo_green "✔ shaper_calibrate.py восстановлен из бекапа"
+    else
+        echo_yellow "⚠ shaper_calibrate.py.bak не найден, пропускаем"
+    fi
+    
+    rm -f resonance_tester.pyc shaper_calibrate.pyc
+    
+    # Откат изменений в printer.cfg
+    echo_yellow "=== Откат изменений в printer.cfg ==="
+    
+    # Удаление sweeping_period
+    if grep -q "sweeping_period:" /usr/data/printer_data/config/printer.cfg 2>/dev/null; then
+        sed -i '/sweeping_period:/d' /usr/data/printer_data/config/printer.cfg
+        echo_green "✔ sweeping_period удален из конфига"
+    fi
+    
+    # Возврат accel_per_hz обратно на 75
+    if grep -q "accel_per_hz: 60" /usr/data/printer_data/config/printer.cfg 2>/dev/null; then
+        sed -i 's/accel_per_hz: 60/accel_per_hz: 75/' /usr/data/printer_data/config/printer.cfg
+        echo_green "✔ accel_per_hz возвращен на 75 (исходное значение)"
+    fi
+    
+    echo_green "✔✔✔ ПОЛНЫЙ ОТКАТ ЗАВЕРШЕН ✔✔✔"
+    echo_yellow "Все файлы восстановлены из бекапов, изменения в конфиге откачены."
+    NEED_REBOOT=1
+}
+
 # === Меню ===
 while true; do
     clear
@@ -146,7 +212,8 @@ while true; do
         printf "  ${GREEN}3) Переключить алгоритм (сейчас: 1.2 = новый → станет 0 = старый)$RESET\n"
     fi
 
-    printf "  4) Выйти из программы\n"
+    printf "  ${RED}4) ПОЛНЫЙ ОТКАТ (восстановить все из бекапов)$RESET\n"
+    printf "  5) Выйти из программы\n"
     printf "Введите номер: "
     read choice
 
@@ -154,7 +221,8 @@ while true; do
         1) update_k1s_k1max; pause ;;
         2) update_k1se; pause ;;
         3) toggle_algorithm; pause ;;
-        4)
+        4) full_rollback; pause ;;
+        5)
             if [ "$NEED_REBOOT" -eq 1 ]; then
                 echo_yellow "Изменения внесены — выполняется перезагрузка..."
                 reboot
